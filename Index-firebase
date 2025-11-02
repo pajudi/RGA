@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Gerenciador de Pesagens - Animais</title>
+  <style>
+    :root{
+      --bg:#f5f7fb; --card:#ffffff; --accent:#2b6cb0; --muted:#6b7280;
+    }
+    *{box-sizing:border-box}
+    body{font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin:0; background:var(--bg); color:#111;}
+    header{background:linear-gradient(90deg,var(--accent),#2c5282); color:#fff; padding:20px 18px;}
+    .container{max-width:980px; margin:22px auto; padding:0 16px;}
+    .card{background:var(--card); border-radius:10px; box-shadow:0 6px 18px rgba(40,46,60,0.06); padding:16px; margin-bottom:16px;}
+    h1{margin:0; font-size:20px}
+    .row{display:flex; gap:12px; align-items:center; flex-wrap:wrap;}
+    .btn{display:inline-block; padding:8px 12px; border-radius:8px; border:none; cursor:pointer;}
+    .btn-primary{background:var(--accent); color:#fff;}
+    .btn-ghost{background:transparent; border:1px solid #e6e9ef; color:var(--accent);}
+    input[type="text"], input[type="number"], input[type="date"], select {
+      padding:8px 10px; border-radius:8px; border:1px solid #e6e9ef; outline:none; min-width:0;
+    }
+    table{width:100%; border-collapse:collapse; margin-top:12px;}
+    th, td{padding:10px 8px; text-align:left; border-bottom:1px solid #f0f2f5; font-size:14px;}
+    th{color:var(--muted); font-weight:600; font-size:13px;}
+    .muted{color:var(--muted); font-size:13px;}
+    .actions button{margin-right:6px;}
+    .empty{padding:24px; text-align:center; color:var(--muted);}
+    .small{font-size:13px;}
+    footer{padding:18px; text-align:center; color:var(--muted); font-size:13px;}
+    /* responsive */
+    @media (max-width:720px){
+      .row{flex-direction:column; align-items:stretch;}
+      th, td{font-size:13px;}
+    }
+  </style>
+</head>
+<body>
+<script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-analytics.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyBrX9pVrZwicPIu8R7TwWpfyMFceOvF5eY",
+    authDomain: "rga1-cfc99.firebaseapp.com",
+    projectId: "rga1-cfc99",
+    storageBucket: "rga1-cfc99.firebasestorage.app",
+    messagingSenderId: "137073480500",
+    appId: "1:137073480500:web:e8403c45c8f25136700b61",
+    measurementId: "G-9C9T2JWQ26"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+</script>
+
+  <header>
+    <div class="container">
+      <h1>Gerenciador de Pesagens — Animais</h1>
+      <div class="muted small">Cadastre, busque e gerencie pesagens (nome, peso e data).</div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+          <input id="searchBox" type="text" placeholder="Buscar por nome..." oninput="renderTable()" style="min-width:220px;">
+          <button class="btn btn-primary" onclick="openAddForm()">+ Adicionar Animal</button>
+          <button class="btn btn-ghost" onclick="exportCSV()">Exportar CSV</button>
+          <label class="btn btn-ghost" style="cursor:pointer; margin:0;">
+            Importar CSV
+            <input id="importFile" type="file" accept=".csv" style="display:none" onchange="importCSV(this)">
+          </label>
+        </div>
+        <div class="small muted">Registros: <span id="count">0</span></div>
+      </div>
+
+      <div id="tableWrap" style="margin-top:12px;">
+        <table id="animalsTable" aria-live="polite">
+          <thead>
+            <tr><th>Nome</th><th>Peso (kg)</th><th>Data</th><th>Observações</th><th style="width:140px">Ações</th></tr>
+          </thead>
+          <tbody id="tableBody">
+            <!-- preenchido por JS -->
+          </tbody>
+        </table>
+        <div id="emptyRow" class="empty" style="display:none">Nenhum registro. Clique em "Adicionar Animal" para começar.</div>
+      </div>
+    </div>
+
+    <div id="formCard" class="card" style="display:none;">
+      <h3 id="formTitle">Adicionar Animal</h3>
+      <form id="animalForm" onsubmit="handleFormSubmit(event)">
+        <input type="hidden" id="animalId">
+        <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:8px;">
+          <div style="flex:2; min-width:180px;">
+            <label class="small muted">Nome</label><br>
+            <input id="name" type="text" required placeholder="Ex: Boi / Vaca / Cachorro">
+          </div>
+          <div style="flex:1; min-width:120px;">
+            <label class="small muted">Peso (kg)</label><br>
+            <input id="weight" type="number" required step="0.01" min="0" placeholder="Ex: 350.50">
+          </div>
+          <div style="flex:1; min-width:150px;">
+            <label class="small muted">Data da pesagem</label><br>
+            <input id="date" type="date" required>
+          </div>
+        </div>
+
+        <div style="margin-top:12px; display:flex; gap:8px;">
+          <button class="btn btn-primary" type="submit">Salvar</button>
+          <button type="button" class="btn btn-ghost" onclick="closeForm()">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <footer>
+    Desenvolvido — exporte/importe CSV para backup. Deploy: GitHub Pages.
+  </footer>
+
+<script>
+/* ---------- armazenamento simples em localStorage ---------- */
+const STORAGE_KEY = 'animalsDB_v1';
+
+function loadData(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){
+    console.error('Erro ao ler storage', e);
+    return [];
+  }
+}
+function saveData(data){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+/* ---------- render tabela e contagem ---------- */
+function renderTable(){
+  const filter = (document.getElementById('searchBox').value || '').toLowerCase().trim();
+  const data = loadData();
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+
+  const filtered = data.filter(item => item.name.toLowerCase().includes(filter));
+  document.getElementById('count').textContent = filtered.length;
+
+  if(filtered.length === 0){
+    document.getElementById('emptyRow').style.display = 'block';
+    document.getElementById('animalsTable').style.display = 'table';
+    // show empty message only when there is no data at all or no match
+    const any = data.length > 0;
+    if(any) document.getElementById('emptyRow').textContent = 'Nenhum registro corresponde à busca.';
+    else document.getElementById('emptyRow').textContent = 'Nenhum registro. Clique em "Adicionar Animal" para começar.';
+  } else {
+    document.getElementById('emptyRow').style.display = 'none';
+  }
+
+  filtered.sort((a,b) => new Date(b.date) - new Date(a.date)); // mais recente primeiro
+
+  for(const item of filtered){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(item.name)}</td>
+      <td>${Number(item.weight).toFixed(2)}</td>
+      <td>${formatDate(item.date)}</td>
+      <td class="muted small">${item.note || ''}</td>
+      <td class="actions">
+        <button class="btn btn-ghost small" onclick="openEdit('${item.id}')">Editar</button>
+        <button class="btn btn-ghost small" onclick="deleteAnimal('${item.id}')">Excluir</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+/* ---------- utilitários ---------- */
+function formatDate(d){
+  if(!d) return '';
+  const dt = new Date(d + 'T00:00:00');
+  if(isNaN(dt)) return d;
+  return dt.toLocaleDateString('pt-BR');
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+
+/* ---------- ações do formulário ---------- */
+function openAddForm(){
+  document.getElementById('animalForm').reset();
+  document.getElementById('animalId').value = '';
+  document.getElementById('formTitle').textContent = 'Adicionar Animal';
+  document.getElementById('formCard').style.display = 'block';
+  window.scrollTo({top:document.getElementById('formCard').offsetTop - 20, behavior:'smooth'});
+}
+function closeForm(){
+  document.getElementById('formCard').style.display = 'none';
+}
+function handleFormSubmit(e){
+  e.preventDefault();
+  const id = document.getElementById('animalId').value || null;
+  const name = document.getElementById('name').value.trim();
+  const weight = parseFloat(document.getElementById('weight').value);
+  const date = document.getElementById('date').value;
+  if(!name || !date || isNaN(weight)) { alert('Preencha todos os campos corretamente.'); return; }
+  const data = loadData();
+
+  if(id){
+    // editar
+    const idx = data.findIndex(x => x.id === id);
+    if(idx >= 0){
+      data[idx].name = name;
+      data[idx].weight = weight;
+      data[idx].date = date;
+    }
+  } else {
+    // novo
+    const newItem = { id: String(Date.now()) + Math.random().toString(36).slice(2,7), name, weight, date, note:'' };
+    data.push(newItem);
+  }
+  saveData(data);
+  closeForm();
+  renderTable();
+}
+
+/* editar/excluir */
+function openEdit(id){
+  const data = loadData();
+  const item = data.find(x => x.id === id);
+  if(!item) return alert('Registro não encontrado.');
+  document.getElementById('animalId').value = item.id;
+  document.getElementById('name').value = item.name;
+  document.getElementById('weight').value = item.weight;
+  document.getElementById('date').value = item.date;
+  document.getElementById('formTitle').textContent = 'Editar Animal';
+  document.getElementById('formCard').style.display = 'block';
+  window.scrollTo({top:document.getElementById('formCard').offsetTop - 20, behavior:'smooth'});
+}
+function deleteAnimal(id){
+  if(!confirm('Deseja realmente excluir este registro?')) return;
+  let data = loadData();
+  data = data.filter(x => x.id !== id);
+  saveData(data);
+  renderTable();
+}
+
+/* ---------- import / export CSV (para backup) ---------- */
+function exportCSV(){
+  const data = loadData();
+  if(!data.length) return alert('Não há registros para exportar.');
+  const header = ['id','name','weight','date','note'];
+  const rows = data.map(r => [
+    r.id,
+    csvSafe(r.name),
+    csvSafe(Number(r.weight).toFixed(2)),
+    csvSafe(r.date),
+    csvSafe(r.note || '')
+  ]);
+  const csv = [header, ...rows].map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'pesagens_animais.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function csvSafe(s){
+  if(s == null) s = '';
+  s = String(s).replace(/"/g,'""');
+  if(s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s}"`;
+  return s;
+}
+function importCSV(input){
+  const f = input.files && input.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const txt = e.target.result;
+    try{
+      const parsed = parseCSV(txt);
+      // expected header 'id,name,weight,date,note'
+      const rows = parsed.filter(r => r.length >= 4);
+      const data = rows.map(r => ({
+        id: r[0] || String(Date.now()) + Math.random().toString(36).slice(2,7),
+        name: r[1] || '',
+        weight: parseFloat(r[2]) || 0,
+        date: r[3] || '',
+        note: r[4] || ''
+      }));
+      saveData(data);
+      renderTable();
+      alert('Importação concluída.');
+    }catch(err){
+      console.error(err);
+      alert('Erro ao importar CSV: formato inválido.');
+    }
+    input.value = ''; // reset
+  };
+  reader.readAsText(f, 'UTF-8');
+}
+/* minimal CSV parser (não cobre todos casos muito exóticos) */
+function parseCSV(text){
+  const lines = [];
+  let cur = '', inQuotes = false, row = [];
+  for(let i=0;i<text.length;i++){
+    const ch = text[i];
+    if(ch === '"' ){
+      if(inQuotes && text[i+1] === '"'){ cur += '"'; i++; continue; }
+      inQuotes = !inQuotes;
+      continue;
+    }
+    if(ch === ',' && !inQuotes){
+      row.push(cur); cur = ''; continue;
+    }
+    if((ch === '\n' || ch === '\r') && !inQuotes){
+      if(ch === '\r' && text[i+1] === '\n'){ /* skip, handled by \n next */ }
+      if(cur !== '' || row.length > 0){ row.push(cur); lines.push(row); row = []; cur = ''; }
+      continue;
+    }
+    cur += ch;
+  }
+  if(cur !== '' || row.length > 0){ row.push(cur); lines.push(row); }
+  // If header present, remove it
+  if(lines.length && lines[0][0] && /id/i.test(lines[0][0]) && /name/i.test(lines[0][1]||'')) {
+    lines.shift();
+  }
+  return lines;
+}
+
+/* ---------- inicialização ---------- */
+(function init(){
+  // set default date field to today for convenience
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('date').value = today;
+  renderTable();
+})();
+</script>
+</body>
+</html>
