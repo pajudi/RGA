@@ -242,4 +242,84 @@ function exportCSV(){
     csvSafe(r.note || '')
   ]);
   const csv = [header, ...rows].map(r => r.join(',')).join('\n');
-  const bl
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'pesagens_animais.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function csvSafe(s){
+  if(s == null) s = '';
+  s = String(s).replace(/"/g,'""');
+  if(s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s}"`;
+  return s;
+}
+function importCSV(input){
+  const f = input.files && input.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const txt = e.target.result;
+    try{
+      const parsed = parseCSV(txt);
+      // expected header 'id,name,weight,date,note'
+      const rows = parsed.filter(r => r.length >= 4);
+      const data = rows.map(r => ({
+        id: r[0] || String(Date.now()) + Math.random().toString(36).slice(2,7),
+        name: r[1] || '',
+        weight: parseFloat(r[2]) || 0,
+        date: r[3] || '',
+        note: r[4] || ''
+      }));
+      saveData(data);
+      renderTable();
+      alert('Importação concluída.');
+    }catch(err){
+      console.error(err);
+      alert('Erro ao importar CSV: formato inválido.');
+    }
+    input.value = ''; // reset
+  };
+  reader.readAsText(f, 'UTF-8');
+}
+/* minimal CSV parser (não cobre todos casos muito exóticos) */
+function parseCSV(text){
+  const lines = [];
+  let cur = '', inQuotes = false, row = [];
+  for(let i=0;i<text.length;i++){
+    const ch = text[i];
+    if(ch === '"' ){
+      if(inQuotes && text[i+1] === '"'){ cur += '"'; i++; continue; }
+      inQuotes = !inQuotes;
+      continue;
+    }
+    if(ch === ',' && !inQuotes){
+      row.push(cur); cur = ''; continue;
+    }
+    if((ch === '\n' || ch === '\r') && !inQuotes){
+      if(ch === '\r' && text[i+1] === '\n'){ /* skip, handled by \n next */ }
+      if(cur !== '' || row.length > 0){ row.push(cur); lines.push(row); row = []; cur = ''; }
+      continue;
+    }
+    cur += ch;
+  }
+  if(cur !== '' || row.length > 0){ row.push(cur); lines.push(row); }
+  // If header present, remove it
+  if(lines.length && lines[0][0] && /id/i.test(lines[0][0]) && /name/i.test(lines[0][1]||'')) {
+    lines.shift();
+  }
+  return lines;
+}
+
+/* ---------- inicialização ---------- */
+(function init(){
+  // set default date field to today for convenience
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('date').value = today;
+  renderTable();
+})();
+</script>
+</body>
+</html>
